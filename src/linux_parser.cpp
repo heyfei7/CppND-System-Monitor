@@ -11,7 +11,7 @@ using std::string;
 using std::to_string;
 using std::vector;
 
-string getFromLine(string line, int index)
+string StringFromLine(string line, int index)
 {
   string value;
   std::istringstream linestream(line);
@@ -23,21 +23,31 @@ string getFromLine(string line, int index)
   return value;
 }
 
-string getLineFromFile(string filename, string targetKey, int keyIndex = 0)
+vector<string> VectorFromLine(string line)
+{
+  vector<string> values;
+  string value;
+  std::istringstream linestream(line);
+  while (linestream >> value)
+  {
+    values.push_back(value);
+  }
+  return values;
+}
+
+string LineFromFile(string filename, string targetKey, int keyIndex = 0)
 {
   string line;
   string key;
   std::ifstream filestream(filename);
   if (filestream.is_open()) {
     while (std::getline(filestream, line)) {
-      std::replace(line.begin(), line.end(), ' ', '_');
       std::replace(line.begin(), line.end(), '=', ' ');
       std::replace(line.begin(), line.end(), ':', ' ');
       std::replace(line.begin(), line.end(), '"', ' ');
 
-      key = getFromLine(line, keyIndex);
+      key = StringFromLine(line, keyIndex);
       if (key == targetKey) {
-        std::replace(line.begin(), line.end(), '_', ' ');
         return line;
       }
     }
@@ -45,7 +55,7 @@ string getLineFromFile(string filename, string targetKey, int keyIndex = 0)
   return line;
 }
 
-string getLineFromFile(string filename, int lineIndex)
+string LineFromFile(string filename, int lineIndex)
 {
   string line;
   std::ifstream stream(filename);
@@ -58,40 +68,32 @@ string getLineFromFile(string filename, int lineIndex)
   return line;
 }
 
-vector<string> getLineVectorFromFile(string filename, int lineIndex)
+vector<string> LineVectorFromFile(string filename, int lineIndex)
 {
-  string line = getLineFromFile(filename, lineIndex);
-  vector<string> values;
-  string value;
-  std::istringstream linestream(line);
-  while (linestream >> value)
-  {
-    values.push_back(value);
-  }
-  return values;
-
+  string line = LineFromFile(filename, lineIndex);
+  return VectorFromLine(line);
 }
 
-string getValueFromFile(string filename, int valueIndex)
+string StringFromFile(string filename, int valueIndex)
 {
-  string firstLine = getLineFromFile(filename, 0);
-  return getFromLine(firstLine, valueIndex);
+  string firstLine = LineFromFile(filename, 0);
+  return StringFromLine(firstLine, valueIndex);
 }
 
-string getValueFromFile(string filename, string targetKey, int keyIndex = 0, int valueIndex = 1)
+string StringFromFile(string filename, string targetKey, int keyIndex = 0, int valueIndex = 1)
 {
-  string line = getLineFromFile(filename, targetKey, keyIndex);
-  return getFromLine(line, valueIndex);
+  string line = LineFromFile(filename, targetKey, keyIndex);
+  return StringFromLine(line, valueIndex);
 }
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
-  return getValueFromFile(kOSPath, "PRETTY_NAME");
+  return StringFromFile(kOSPath, "PRETTY_NAME");
 }
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::Kernel() {
-  return getValueFromFile(kProcDirectory + kVersionFilename, 2);
+  return StringFromFile(kProcDirectory + kVersionFilename, 2);
 }
 
 // BONUS: Update this to use std::filesystem
@@ -117,17 +119,18 @@ vector<int> LinuxParser::Pids() {
 // DONE: Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() {
   string filename = kProcDirectory + kMeminfoFilename;
-  string memTotal = getValueFromFile(filename, "MemTotal");
-  string memFree  = getValueFromFile(filename, "MemFree");
-  return stof(memTotal) - stof(memFree);
+  string memTotal = StringFromFile(filename, "MemTotal");
+  string memFree  = StringFromFile(filename, "MemFree");
+  float total = stof(memTotal);
+  float used = total - stof(memFree);
+  return used / total;
 }
 
-// DONE: Read and return the system uptime
-long LinuxParser::UpTime() { 
+// DONE: Read and return the system uptime (in seconds)
+long LinuxParser::UpTime() {
   string filename = kProcDirectory + kUptimeFilename;
-  string upTime = getValueFromFile(filename, 0);
-  float upTimeFloat = stof(upTime);
-  return upTimeFloat / sysconf(_SC_CLK_TCK);
+  string upTime = StringFromFile(filename, 0);
+  return stof(upTime);
 }
 
 /* 
@@ -144,9 +147,9 @@ Total = Idle + NonIdle
 long LinuxParser::Jiffies() {
   vector<string> cpuUtils = CpuUtilization();
   long jiffies = 0;
-  for (auto util : cpuUtils)
+  for (int i = 1; i < cpuUtils.size(); i++)
   {
-    jiffies += (long)stof(util);
+    jiffies += stof(cpuUtils[i]);
   }
   return jiffies;
 }
@@ -155,9 +158,9 @@ long LinuxParser::Jiffies() {
 // REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::ActiveJiffies(int pid) {
   string filename = kProcDirectory + to_string(pid) + kStatFilename;
-  vector<string> fields = getLineVectorFromFile(filename, 0);
-  long utime = (long) stof(fields[14-1]);
-  long stime = (long) stof(fields[15-1]);
+  vector<string> fields = LineVectorFromFile(filename, 0);
+  long utime = stof(fields[14-1]);
+  long stime = stof(fields[15-1]);
   return utime + stime;
 }
 
@@ -178,56 +181,57 @@ long LinuxParser::IdleJiffies() {
 // DONE: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() {
   string filename = kProcDirectory + kStatFilename;
-  return getLineVectorFromFile(filename, 0);
+  return LineVectorFromFile(filename, 0);
 }
 
 // DONE: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
-  string filename = kProcDirectory + kMeminfoFilename;
-  string processes = getValueFromFile(filename, "processes");
-  return (int)stof(processes);
+  string filename = kProcDirectory + kStatFilename;
+  string processes = StringFromFile(filename, "processes");
+  return stof(processes);
 }
 
 // DONE: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
-  string filename = kProcDirectory + kMeminfoFilename;
-  string processes = getValueFromFile(filename, "procs_running");
-  return (int)stof(processes);
+  string filename = kProcDirectory + kStatFilename;
+  string processes = StringFromFile(filename, "procs_running");
+  return stof(processes);
 }
 
 // DONE: Read and return the command associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Command(int pid) {
   string filename = kProcDirectory + to_string(pid) + kCmdlineFilename;
-  return getLineFromFile(filename, 0);
+  return LineFromFile(filename, 0);
 }
 
-// DONE: Read and return the memory used by a process
+// DONE: Read and return the memory used by a process (in MB)
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid[[maybe_unused]]) { 
+string LinuxParser::Ram(int pid[[maybe_unused]]) {
   string filename = kProcDirectory + to_string(pid) + kStatusFilename;
-  return getValueFromFile(filename, "VmSize");
+  int ram = stof(StringFromFile(filename, "VmSize")) * 0.001;
+  return to_string(ram);
 }
 
 // DONE: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Uid(int pid) {
-  string filename = kProcDirectory + to_string(pid) + kCmdlineFilename;
-  return getValueFromFile(filename, "Uid");
+  string filename = kProcDirectory + to_string(pid) + kStatusFilename;
+  return StringFromFile(filename, "Uid");
 }
 
 // DONE: Read and return the user associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::User(int pid) { 
   string uid = Uid(pid);
-  return getValueFromFile(kPasswordPath, uid, 2, 0);
+  return StringFromFile(kPasswordPath, uid, 2, 0);
 }
 
 // DONE: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::UpTime(int pid) { 
   string filename = kProcDirectory + to_string(pid) + kStatFilename;
-  string upTime = getValueFromFile(filename, 22 - 1);
-  float upTimeFloat = stof(upTime);
-  return upTimeFloat / sysconf(_SC_CLK_TCK);
+  string starttime = StringFromFile(filename, 22 - 1);
+  float stime = stof(starttime);
+  return UpTime() - (stime / sysconf(_SC_CLK_TCK));
 }

@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <linux_parser.h>
 
 #include "process.h"
 
@@ -10,24 +11,40 @@ using std::string;
 using std::to_string;
 using std::vector;
 
-// TODO: Return this process's ID
-int Process::Pid() { return 0; }
+Process::Process(int pid): pid{pid}
+{
+    user = LinuxParser::User(pid);
+    cmd = LinuxParser::Command(pid);
+}
 
-// TODO: Return this process's CPU utilization
-float Process::CpuUtilization() { return 0; }
+// DONE: Return this process's ID
+int Process::Pid() const { return pid; }
 
-// TODO: Return the command that generated this process
-string Process::Command() { return string(); }
+// DONE: Return this process's CPU utilization
+float Process::CpuUtilization() const {
+    long total_time = LinuxParser::ActiveJiffies(Pid());
+    float up_time = UpTime();
+    if (UpTime() == 0)
+    {
+        return 0;
+    }
+    return (float) total_time / sysconf(_SC_CLK_TCK) / (float) UpTime();
+}
 
-// TODO: Return this process's memory utilization
-string Process::Ram() { return string(); }
+// DONE: Return the command that generated this process
+string Process::Command() const { return cmd; }
 
-// TODO: Return the user (name) that generated this process
-string Process::User() { return string(); }
+// DONE: Return this process's memory utilization
+string Process::Ram() const { return LinuxParser::Ram(Pid()); }
 
-// TODO: Return the age of this process (in seconds)
-long int Process::UpTime() { return 0; }
+// DONE: Return the user (name) that generated this process
+string Process::User() const { return user; }
 
-// TODO: Overload the "less than" comparison operator for Process objects
+// DONE: Return the age of this process (in seconds)
+long int Process::UpTime() const { return LinuxParser::UpTime(Pid()); }
+
+// DONE: Overload the "less than" comparison operator for Process objects
 // REMOVE: [[maybe_unused]] once you define the function
-bool Process::operator<(Process const& a[[maybe_unused]]) const { return true; }
+bool Process::operator<(Process const& a) const {
+    return Ram() > a.Ram();
+}

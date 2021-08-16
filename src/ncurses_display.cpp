@@ -3,6 +3,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 #include "format.h"
 #include "ncurses_display.h"
