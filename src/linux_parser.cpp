@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -86,6 +87,20 @@ string StringFromFile(string filename, string targetKey, int keyIndex = 0, int v
   return StringFromLine(line, valueIndex);
 }
 
+template <typename Type>
+Type safe_convert(string s)
+{
+  Type f = 0;
+  try
+  {
+    f = (Type) stof(s);
+  }
+  catch(...) {}
+  return f;
+}
+
+// --------------------------------------------------
+
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
   return StringFromFile(kOSPath, "PRETTY_NAME");
@@ -121,16 +136,16 @@ float LinuxParser::MemoryUtilization() {
   string filename = kProcDirectory + kMeminfoFilename;
   string memTotal = StringFromFile(filename, "MemTotal");
   string memFree  = StringFromFile(filename, "MemFree");
-  float total = stof(memTotal);
-  float used = total - stof(memFree);
-  return used / total;
+  float total = safe_convert<float>(memTotal);
+  float free = safe_convert<float>(memFree);
+  return (total - free) / total;
 }
 
 // DONE: Read and return the system uptime (in seconds)
 long LinuxParser::UpTime() {
   string filename = kProcDirectory + kUptimeFilename;
   string upTime = StringFromFile(filename, 0);
-  return stof(upTime);
+  return safe_convert<long>(upTime);
 }
 
 /* 
@@ -149,7 +164,7 @@ long LinuxParser::Jiffies() {
   long jiffies = 0;
   for (int i = 1; i < cpuUtils.size(); i++)
   {
-    jiffies += stof(cpuUtils[i]);
+    jiffies += safe_convert<long>(cpuUtils[i]);
   }
   return jiffies;
 }
@@ -159,8 +174,8 @@ long LinuxParser::Jiffies() {
 long LinuxParser::ActiveJiffies(int pid) {
   string filename = kProcDirectory + to_string(pid) + kStatFilename;
   vector<string> fields = LineVectorFromFile(filename, 0);
-  long utime = stof(fields[14-1]);
-  long stime = stof(fields[15-1]);
+  long utime = safe_convert<long>(fields[14-1]);
+  long stime = safe_convert<long>(fields[15-1]);
   return utime + stime;
 }
 
@@ -173,8 +188,8 @@ long LinuxParser::ActiveJiffies() {
 long LinuxParser::IdleJiffies() {
   vector<string> cpuUtils = CpuUtilization();
   long jiffies = 0;
-  jiffies += stof(cpuUtils[4]);
-  jiffies += stof(cpuUtils[5]);
+  jiffies += safe_convert<long>(cpuUtils[4]);
+  jiffies += safe_convert<long>(cpuUtils[5]);
   return jiffies;
 }
 
@@ -188,14 +203,14 @@ vector<string> LinuxParser::CpuUtilization() {
 int LinuxParser::TotalProcesses() {
   string filename = kProcDirectory + kStatFilename;
   string processes = StringFromFile(filename, "processes");
-  return stof(processes);
+  return safe_convert<int>(processes);
 }
 
 // DONE: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
   string filename = kProcDirectory + kStatFilename;
   string processes = StringFromFile(filename, "procs_running");
-  return stof(processes);
+  return safe_convert<int>(processes);
 }
 
 // DONE: Read and return the command associated with a process
@@ -209,7 +224,7 @@ string LinuxParser::Command(int pid) {
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Ram(int pid[[maybe_unused]]) {
   string filename = kProcDirectory + to_string(pid) + kStatusFilename;
-  int ram = stof(StringFromFile(filename, "VmSize")) * 0.001;
+  int ram = safe_convert<int>(StringFromFile(filename, "VmSize")) * 0.001;
   return to_string(ram);
 }
 
@@ -232,6 +247,6 @@ string LinuxParser::User(int pid) {
 long LinuxParser::UpTime(int pid) { 
   string filename = kProcDirectory + to_string(pid) + kStatFilename;
   string starttime = StringFromFile(filename, 22 - 1);
-  float stime = stof(starttime);
+  float stime = safe_convert<float>(starttime);
   return UpTime() - (stime / sysconf(_SC_CLK_TCK));
 }
