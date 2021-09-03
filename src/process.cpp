@@ -24,15 +24,21 @@ int Process::Pid() const { return pid; }
 float Process::CpuUtilization() const {
     long total_time = LinuxParser::ActiveJiffies(Pid());
     float up_time = UpTime();
-    if (UpTime() == 0)
+    if (up_time == 0)
     {
         return 0;
     }
-    return (float) total_time / sysconf(_SC_CLK_TCK) / (float) UpTime();
+    return (float) total_time / sysconf(_SC_CLK_TCK) / (float) up_time;
 }
 
 // DONE: Return the command that generated this process
-string Process::Command() const { return cmd; }
+string Process::Command() const { 
+  if (cmd.size() > 40)
+  {
+    return cmd.substr(0, 40) + "...";
+  }
+  return cmd;
+}
 
 // DONE: Return this process's memory utilization
 string Process::Ram() const { return LinuxParser::Ram(Pid()); }
@@ -46,5 +52,5 @@ long int Process::UpTime() const { return LinuxParser::UpTime(Pid()); }
 // DONE: Overload the "less than" comparison operator for Process objects
 // REMOVE: [[maybe_unused]] once you define the function
 bool Process::operator<(Process const& a) const {
-    return CpuUtilization() > a.CpuUtilization();
+    return CpuUtilization() < a.CpuUtilization();
 }

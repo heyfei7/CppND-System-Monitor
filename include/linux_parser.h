@@ -18,6 +18,15 @@ const std::string kVersionFilename{"/version"};
 const std::string kOSPath{"/etc/os-release"};
 const std::string kPasswordPath{"/etc/passwd"};
 
+// Filters
+const std::string filterPrettyName{"PRETTY_NAME"};
+const std::string filterMemTotal{"MemTotal"};
+const std::string filterMemFree{"MemFree"};
+const std::string filterProcesses{"processes"};
+const std::string filterProcsRunning{"procs_running"};
+const std::string filterVmRSS{"VmRSS"}; // Use VmRSS, not VmSize
+const std::string filterUid{"Uid"};
+
 // System
 float MemoryUtilization();
 long UpTime();
@@ -40,6 +49,7 @@ enum CPUStates {
   kGuest_,
   kGuestNice_
 };
+  
 std::vector<std::string> CpuUtilization();
 long Jiffies();
 long ActiveJiffies();

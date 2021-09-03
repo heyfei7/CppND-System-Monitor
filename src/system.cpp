@@ -9,10 +9,7 @@
 #include "processor.h"
 #include "system.h"
 
-using std::set;
-using std::size_t;
-using std::string;
-using std::vector;
+using namespace std;
 
 System::System()
 {
@@ -22,7 +19,7 @@ System::System()
     vector<int> pids = LinuxParser::Pids();
     for (int pid : pids)
     {
-        processes_.push_back(Process(pid));
+        processes_.emplace_back(pid);
     }
 }
 

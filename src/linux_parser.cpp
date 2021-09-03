@@ -12,7 +12,7 @@ using std::string;
 using std::to_string;
 using std::vector;
 
-string StringFromLine(string line, int index)
+string valueFromLine(string line, int index)
 {
   string value;
   std::istringstream linestream(line);
@@ -24,67 +24,16 @@ string StringFromLine(string line, int index)
   return value;
 }
 
-vector<string> VectorFromLine(string line)
+vector<string> vectorFromLine(string line)
 {
   vector<string> values;
   string value;
   std::istringstream linestream(line);
   while (linestream >> value)
   {
-    values.push_back(value);
+    values.emplace_back(value);
   }
   return values;
-}
-
-string LineFromFile(string filename, string targetKey, int keyIndex = 0)
-{
-  string line;
-  string key;
-  std::ifstream filestream(filename);
-  if (filestream.is_open()) {
-    while (std::getline(filestream, line)) {
-      std::replace(line.begin(), line.end(), '=', ' ');
-      std::replace(line.begin(), line.end(), ':', ' ');
-      std::replace(line.begin(), line.end(), '"', ' ');
-
-      key = StringFromLine(line, keyIndex);
-      if (key == targetKey) {
-        return line;
-      }
-    }
-  }
-  return line;
-}
-
-string LineFromFile(string filename, int lineIndex)
-{
-  string line;
-  std::ifstream stream(filename);
-  if (stream.is_open()) {
-    int i = 0;
-    while (std::getline(stream, line) && i < lineIndex) {
-      i++;
-    }
-  }
-  return line;
-}
-
-vector<string> LineVectorFromFile(string filename, int lineIndex)
-{
-  string line = LineFromFile(filename, lineIndex);
-  return VectorFromLine(line);
-}
-
-string StringFromFile(string filename, int valueIndex)
-{
-  string firstLine = LineFromFile(filename, 0);
-  return StringFromLine(firstLine, valueIndex);
-}
-
-string StringFromFile(string filename, string targetKey, int keyIndex = 0, int valueIndex = 1)
-{
-  string line = LineFromFile(filename, targetKey, keyIndex);
-  return StringFromLine(line, valueIndex);
 }
 
 template <typename Type>
@@ -99,16 +48,100 @@ Type safe_convert(string s)
   return f;
 }
 
+struct File
+{
+  std::string filename;
+  
+  File(std::string fn): filename{fn} {}
+
+  std::string findLine(std::string targetKey, int keyIndex = 0);
+  std::string findLine(int lineIndex = 0);
+  
+  std::vector<std::string> findLineVector(int lineIndex = 0);
+
+  std::string findValue(int valueIndex = 0);
+  std::string findValue(std::string targetKey, int keyIndex = 0, int valueIndex = 1);
+	
+  template <typename Type>
+  Type findNumValue(int valueIndex = 0);
+  
+  template <typename Type>
+  Type findNumValue(std::string targetKey, int keyIndex = 0, int valueIndex = 1);
+  
+};
+
+string File::findLine(string targetKey, int keyIndex)
+{
+  string line;
+  string key;
+  std::ifstream filestream(filename);
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line)) {
+      std::replace(line.begin(), line.end(), '=', ' ');
+      std::replace(line.begin(), line.end(), ':', ' ');
+      std::replace(line.begin(), line.end(), '"', ' ');
+
+      key = valueFromLine(line, keyIndex);
+      if (key == targetKey) {
+        return line;
+      }
+    }
+  }
+  return line;
+}
+
+string File::findLine(int lineIndex)
+{
+  string line;
+  std::ifstream stream(filename);
+  if (stream.is_open()) {
+    int i = 0;
+    while (std::getline(stream, line) && i < lineIndex) {
+      i++;
+    }
+  }
+  return line;
+}
+
+vector<string> File::findLineVector(int lineIndex)
+{
+  return vectorFromLine(findLine(lineIndex));
+}
+
+string File::findValue(int valueIndex)
+{
+  return valueFromLine(findLine(), valueIndex);
+}
+
+string File::findValue(string targetKey, int keyIndex, int valueIndex)
+{
+  return valueFromLine(findLine(targetKey, keyIndex), valueIndex);
+}
+
+template <typename Type>
+Type File::findNumValue(int valueIndex)
+{
+  return safe_convert<Type>(findValue(valueIndex));
+}
+
+template <typename Type>
+Type File::findNumValue(std::string targetKey, int keyIndex, int valueIndex)
+{
+  return safe_convert<Type>(findValue(targetKey, keyIndex, valueIndex));
+}
+
 // --------------------------------------------------
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
-  return StringFromFile(kOSPath, "PRETTY_NAME");
+  File file{kOSPath};
+  return file.findValue(filterPrettyName);
 }
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::Kernel() {
-  return StringFromFile(kProcDirectory + kVersionFilename, 2);
+  File file{kProcDirectory + kVersionFilename};
+  return file.findValue(2);
 }
 
 // BONUS: Update this to use std::filesystem
@@ -123,7 +156,7 @@ vector<int> LinuxParser::Pids() {
       string filename(file->d_name);
       if (std::all_of(filename.begin(), filename.end(), isdigit)) {
         int pid = stoi(filename);
-        pids.push_back(pid);
+        pids.emplace_back(pid);
       }
     }
   }
@@ -133,23 +166,23 @@ vector<int> LinuxParser::Pids() {
 
 // DONE: Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() {
-  string filename = kProcDirectory + kMeminfoFilename;
-  string memTotal = StringFromFile(filename, "MemTotal");
-  string memFree  = StringFromFile(filename, "MemFree");
-  float total = safe_convert<float>(memTotal);
-  float free = safe_convert<float>(memFree);
+  File file{kProcDirectory + kMeminfoFilename};
+  float total = file.findNumValue<float>(filterMemTotal);
+  float free  = file.findNumValue<float>(filterMemFree);
+  //float total = safe_convert<float>(memTotal);
+  //float free = safe_convert<float>(memFree);
   return (total - free) / total;
 }
 
 // DONE: Read and return the system uptime (in seconds)
 long LinuxParser::UpTime() {
-  string filename = kProcDirectory + kUptimeFilename;
-  string upTime = StringFromFile(filename, 0);
-  return safe_convert<long>(upTime);
+  File file{kProcDirectory + kUptimeFilename};
+  //string upTime = file.findValue();
+  return file.findNumValue<long>();
 }
 
 /* 
-0    1       2      3       4         5      6     7        9      9      109
+     0       1      2       3         4      5     6        7      8      9
      user    nice   system  idle      iowait irq   softirq  steal  guest  guest_nice
 cpu  74608   2520   24433   1117073   6176   4054  0        0      0      0
 
@@ -162,7 +195,7 @@ Total = Idle + NonIdle
 long LinuxParser::Jiffies() {
   vector<string> cpuUtils = CpuUtilization();
   long jiffies = 0;
-  for (int i = 1; i < cpuUtils.size(); i++)
+  for (size_t i = 1; i < cpuUtils.size(); i++)
   {
     jiffies += safe_convert<long>(cpuUtils[i]);
   }
@@ -172,8 +205,8 @@ long LinuxParser::Jiffies() {
 // DONE: Read and return the number of active jiffies for a PID
 // REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::ActiveJiffies(int pid) {
-  string filename = kProcDirectory + to_string(pid) + kStatFilename;
-  vector<string> fields = LineVectorFromFile(filename, 0);
+  File file{kProcDirectory + to_string(pid) + kStatFilename};
+  vector<string> fields = file.findLineVector();
   long utime = safe_convert<long>(fields[14-1]);
   long stime = safe_convert<long>(fields[15-1]);
   return utime + stime;
@@ -188,65 +221,65 @@ long LinuxParser::ActiveJiffies() {
 long LinuxParser::IdleJiffies() {
   vector<string> cpuUtils = CpuUtilization();
   long jiffies = 0;
-  jiffies += safe_convert<long>(cpuUtils[4]);
-  jiffies += safe_convert<long>(cpuUtils[5]);
+  jiffies += safe_convert<long>(cpuUtils[CPUStates::kIdle_]);
+  jiffies += safe_convert<long>(cpuUtils[CPUStates::kIOwait_]);
   return jiffies;
 }
 
 // DONE: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() {
-  string filename = kProcDirectory + kStatFilename;
-  return LineVectorFromFile(filename, 0);
+  File file{kProcDirectory + kStatFilename};
+  vector<string> cpuUtils = file.findLineVector();
+  cpuUtils.erase(cpuUtils.begin());
+  return cpuUtils;
 }
 
 // DONE: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
-  string filename = kProcDirectory + kStatFilename;
-  string processes = StringFromFile(filename, "processes");
-  return safe_convert<int>(processes);
+  File file{kProcDirectory + kStatFilename};
+  return file.findNumValue<int>(filterProcesses);
 }
 
 // DONE: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
-  string filename = kProcDirectory + kStatFilename;
-  string processes = StringFromFile(filename, "procs_running");
-  return safe_convert<int>(processes);
+  File file{kProcDirectory + kStatFilename};
+  return file.findNumValue<int>(filterProcsRunning);
 }
 
 // DONE: Read and return the command associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Command(int pid) {
-  string filename = kProcDirectory + to_string(pid) + kCmdlineFilename;
-  return LineFromFile(filename, 0);
+  File file{kProcDirectory + to_string(pid) + kCmdlineFilename};
+  return file.findLine();
 }
 
 // DONE: Read and return the memory used by a process (in MB)
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid[[maybe_unused]]) {
-  string filename = kProcDirectory + to_string(pid) + kStatusFilename;
-  int ram = safe_convert<int>(StringFromFile(filename, "VmSize")) * 0.001;
+string LinuxParser::Ram(int pid) {
+  File file{kProcDirectory + to_string(pid) + kStatusFilename};
+  int ram = file.findNumValue<int>(filterVmRSS) * 0.001;
   return to_string(ram);
 }
 
 // DONE: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Uid(int pid) {
-  string filename = kProcDirectory + to_string(pid) + kStatusFilename;
-  return StringFromFile(filename, "Uid");
+  File file{kProcDirectory + to_string(pid) + kStatusFilename};
+  return file.findValue(filterUid);
 }
 
 // DONE: Read and return the user associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::User(int pid) { 
-  string uid = Uid(pid);
-  return StringFromFile(kPasswordPath, uid, 2, 0);
+  File file{kPasswordPath};
+  return file.findValue(Uid(pid), 2, 0);
 }
 
 // DONE: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid) { 
-  string filename = kProcDirectory + to_string(pid) + kStatFilename;
-  string starttime = StringFromFile(filename, 22 - 1);
-  float stime = safe_convert<float>(starttime);
+long LinuxParser::UpTime(int pid) {
+  File file{kProcDirectory + to_string(pid) + kStatFilename};
+  //string starttime = file.findValue(22 - 1);
+  float stime = file.findNumValue<float>(22 - 1);
   return UpTime() - (stime / sysconf(_SC_CLK_TCK));
 }
