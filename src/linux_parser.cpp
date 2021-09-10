@@ -209,7 +209,7 @@ long LinuxParser::ActiveJiffies(int pid) {
   vector<string> fields = file.findLineVector();
   long utime = safe_convert<long>(fields[14-1]);
   long stime = safe_convert<long>(fields[15-1]);
-  return utime + stime;
+  return utime + stime; // + cutime + cstime;
 }
 
 // DONE: Read and return the number of active jiffies for the system

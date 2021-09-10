@@ -26,7 +26,8 @@ void StdOutDisplay::DisplaySystem(System& system) {
 
 void StdOutDisplay::DisplayProcesses(std::vector<Process>& processes, int n) {
   std::sort(processes.begin(), processes.end());
-  for (int i = 0; i < n; ++i) {
+  float total = 0;
+  for (int i = 0; i < n && i < (int)processes.size(); ++i) {
     Process &proc = processes[i];
     cout << proc.Pid() << "\t";
     cout << proc.UpTime() << "s\t"; 
@@ -34,6 +35,11 @@ void StdOutDisplay::DisplayProcesses(std::vector<Process>& processes, int n) {
     cout << proc.Ram() << "MB\t";
     cout << proc.Command() << "s\n"; 
   }
+  for (auto proc : processes)
+  {
+    total += proc.CpuUtilization();
+  }
+  cout << "TOTAL!" << total << endl;
 }
 
 void StdOutDisplay::Display(System& system, int n) {

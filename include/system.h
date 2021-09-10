@@ -22,7 +22,7 @@ class System {
   // DONE: Define any necessary private members
  private:
   Processor cpu_ = {};
-  std::vector<Process> processes_ = {};
+  std::vector<Process> processes_;
   std::string os_;
   std::string kernel_;
 };

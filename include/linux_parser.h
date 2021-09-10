@@ -5,6 +5,8 @@
 #include <regex>
 #include <string>
 
+template <typename Type> Type safe_convert(std::string s);
+
 namespace LinuxParser {
 // Paths
 const std::string kProcDirectory{"/proc/"};

@@ -4,5 +4,6 @@
 
 int main() {
   System system;
+  //StdOutDisplay::Display(system);
   NCursesDisplay::Display(system);
 }

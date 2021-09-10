@@ -28,7 +28,7 @@ float Process::CpuUtilization() const {
     {
         return 0;
     }
-    return (float) total_time / sysconf(_SC_CLK_TCK) / (float) up_time;
+    return 100 * ((float) total_time / sysconf(_SC_CLK_TCK)) / (float) up_time;
 }
 
 // DONE: Return the command that generated this process

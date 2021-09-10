@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <linux_parser.h>
+#include <iostream>
+#include <algorithm>
 
 #include "process.h"
 #include "processor.h"
@@ -16,11 +18,6 @@ System::System()
     os_ = LinuxParser::OperatingSystem();
     kernel_ = LinuxParser::Kernel();
     cpu_ = Processor();
-    vector<int> pids = LinuxParser::Pids();
-    for (int pid : pids)
-    {
-        processes_.emplace_back(pid);
-    }
 }
 
 // DONE: Return the system's CPU
@@ -28,7 +25,18 @@ Processor& System::Cpu() { return cpu_; }
 
 // DONE: Return a container composed of the system's processes
 vector<Process>& System::Processes() {
-    return processes_;
+  processes_.clear();
+  vector<int> pids = LinuxParser::Pids();
+  for (int pid : pids)
+  {
+    Process proc = Process(pid);
+    if (proc.CpuUtilization() > 0 && safe_convert<int>(proc.Ram()) > 0)
+    {
+    	processes_.push_back(proc);
+    }
+  }
+  std::sort(processes_.begin(), processes_.end());
+  return processes_;
 }
 
 // DONE: Return the system's kernel identifier (string)
